@@ -1,37 +1,31 @@
-// server.js — Deploy this on Railway, Render, Replit, etc.
-// Then put your deployed URL into the Roblox LocalScript.
-
 const express = require("express");
+const https = require("https");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/playtime/:userId", async (req, res) => {
+app.get("/playtime/:userId", (req, res) => {
     const userId = req.params.userId;
+    const url = `https://userstatistics.roblox.com/v1/users/${userId}/stats`;
 
-    try {
-        // Fetch player stats from Roblox's stats API
-        const response = await fetch(
-            `https://userstatistics.roblox.com/v1/users/${userId}/stats`,
-            {
-                headers: {
-                    "Accept": "application/json"
-                }
+    https.get(url, { headers: { "Accept": "application/json" } }, (response) => {
+        let data = "";
+
+        response.on("data", (chunk) => { data += chunk; });
+
+        response.on("end", () => {
+            try {
+                const parsed = JSON.parse(data);
+                res.json(parsed);
+            } catch (e) {
+                res.status(500).json({ error: "Failed to parse response", raw: data });
             }
-        );
+        });
 
-        if (!response.ok) {
-            return res.status(response.status).json({ error: "Roblox API error" });
-        }
-
-        const data = await response.json();
-        return res.json(data);
-
-    } catch (err) {
-        console.error("Error fetching playtime:", err);
-        return res.status(500).json({ error: err.message });
-    }
+    }).on("error", (err) => {
+        res.status(500).json({ error: err.message });
+    });
 });
 
 app.listen(PORT, () => {
-    console.log(`Playtime proxy running on port ${PORT}`);
+    console.log(`Proxy running on port ${PORT}`);
 });
